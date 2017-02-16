@@ -1,3 +1,5 @@
+import java.util.IntSummaryStatistics;
+
 public class Slimes {
 
     interface Handler {
@@ -7,28 +9,68 @@ public class Slimes {
     public static void main(String... args) {
         long start = System.currentTimeMillis();
         int oldmax = 0;
-        int range = 300;
-        for (long i = 0; i < Long.MAX_VALUE; i++) {
-            int minX = -range;
-            int minZ = -range;
-            int width = 2 * range;
-            int height = 2 * range;
-            final int[] max = new int[3];
-            Handler maxHandler = (val, x, z) -> {
-                if (val > max[0]) {
-                    max[0] = val;
-                    max[1] = x;
-                    max[2] = z;
+        int range = (int) Math.sqrt(Integer.MAX_VALUE) / 4;
+        int minX = -range;
+        int minZ = -range;
+        int width = 2 * range;
+        int height = 2 * range;
+        long myseed = -1231333916804148705L;
+        final long[] lastdist = {Long.MAX_VALUE};
+        Handler maxHandler = (val, x, z) -> {
+            long dist = x * x + z * z;
+            if (val != 6)
+                return;
+            if (dist < lastdist[0]) {
+                lastdist[0] = dist;
+                System.out.printf("seed: %d   max: %d   at (%d, %d)\n", myseed, val, x * 16, z * 16);
+            }
+        };
+        maxRect(myseed, minX, minZ, width, height, 4, maxHandler);
+        System.out.println(System.currentTimeMillis() - start);
+    }
+
+    public static void maxFlood(long seed, int minX, int minZ, int width, int height, int threshold, Handler handler) {
+        int[] stack = new int[width * height];
+        int stackptr = 0; //points to the next free index
+        boolean[] visited = new boolean[width * height];
+        for (int z = 0; z < height; z++) {
+            for (int x = 0; x < width; x++) {
+                //check if floodfill can start here
+                if (visited[x + z * width])
+                    continue;
+                if (!(isSC(seed, minX + x, minZ + z))) {
+                    visited[x + z * width] = true;
+                    continue;
                 }
-            };
-            maxRect(i, minX, minZ, width, height, 10, maxHandler);
-            boolean update = oldmax < max[0];
-            if (update) {
-                oldmax = max[0];
-                System.out.printf("%sseed: %d   max: %d   at (%d, %d)\n", update ? "\t" : "", i, max[0], max[1] * 16, max[2] * 16);
+                int size = 0;
+                int pos = x + z * width;
+                stack[stackptr++] = pos;
+                while (stackptr != 0) {
+                    int curr = stack[--stackptr];
+                    int currX = curr % width;
+                    int currZ = curr / width;
+                    if (visited[curr])
+                        continue;
+                    if (!isSC(seed, minX + currX, minZ + currZ)) {
+                        visited[curr] = true;
+                        continue;
+                    }
+                    size++;
+                    visited[curr] = true;
+                    //check if in bounds
+                    if (currX < width - 1)
+                        stack[stackptr++] = curr + 1;
+                    if (currX > 0)
+                        stack[stackptr++] = curr - 1;
+                    if (currZ < height - 1)
+                        stack[stackptr++] = curr + width;
+                    if (currZ > 0)
+                        stack[stackptr++] = curr - width;
+                }
+                if (size >= threshold)
+                    handler.handle(size, minX + x, minZ + z);
             }
         }
-        System.out.println(System.currentTimeMillis() - start);
     }
 
     public static void maxRect(long seed, int minX, int minZ, int width, int height, int threshold, Handler handler) {
@@ -89,7 +131,7 @@ public class Slimes {
     }
 
     public static boolean isSCold(long seed, int x, int z) {
-        return RNGnextInt (seed +
+        return RNGnextInt(seed +
                 (long) (x * x * 0x4c1906) +
                 (long) (x * 0x5ac0db) +
                 (long) (z * z) * 0x4307a7L +
