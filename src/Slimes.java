@@ -129,12 +129,4 @@ public class Slimes {
         while (bits - val + (10 - 1) < 0);
         return val == 0;
     }
-
-    public static boolean isSCold(long seed, int x, int z) {
-        return RNGnextInt(seed +
-                (long) (x * x * 0x4c1906) +
-                (long) (x * 0x5ac0db) +
-                (long) (z * z) * 0x4307a7L +
-                (long) (z * 0x5f24f) ^ 0x3ad8025f, 10) == 0;
-    }
 }
